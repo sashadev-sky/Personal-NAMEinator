@@ -5,19 +5,13 @@ import (
 	"fmt"
 	"github.com/miekg/dns"
 	"log"
-	"math/rand"
 	"os/exec"
 	"regexp"
 	"runtime"
 	"time"
 )
 
-// PROGRAM
-var VERSION = "0.2 alpha"
-
-// GLOBALS
-var nsStore = nsInfoMap{ns: make(map[string]NSinfo)}
-var dStore = dInfoMap{d: make(map[string]Dinfo)}
+var VERSION = "0.3 alpha"
 var appConfiguration APPconfig
 
 type APPconfig struct {
@@ -66,11 +60,11 @@ func printWelcome() {
 	fmt.Println("-------------")
 }
 
-func processResults() {
+func processResults(nsStore nsInfoMap) {
 	nsStore.mutex.Lock()
 	defer nsStore.mutex.Unlock()
 	for _, entry := range nsStore.ns {
-		nsResults := nsStoreGetMeasurement(entry.IPAddr)
+		nsResults := nsStoreGetMeasurement(nsStore, entry.IPAddr)
 		entry.rttAvg = nsResults.rttAvg
 		entry.rttMin = nsResults.rttMin
 		entry.rttMax = nsResults.rttMax
@@ -79,7 +73,7 @@ func processResults() {
 }
 
 // prints results
-func printResults() {
+func printResults(nsStore nsInfoMap) {
 	fmt.Println("")
 	fmt.Println("finished - presenting results: ") // TODO: Colorful representation in a table PLEASE
 	for _, nameserver := range nsStore.ns {
@@ -87,7 +81,7 @@ func printResults() {
 		fmt.Println(nameserver.IPAddr + ": ")
 		fmt.Printf("Avg. [%v], Min. [%v], Max. [%v]", nameserver.rttAvg, nameserver.rttMin, nameserver.rttMax)
 		if appConfiguration.debug {
-			fmt.Println(nsStoreGetRecord(nameserver.IPAddr))
+			fmt.Println(nsStoreGetRecord(nsStore, nameserver.IPAddr))
 		}
 		fmt.Println("")
 	}
@@ -99,37 +93,17 @@ func printBye() {
 	fmt.Println("Au revoir!")
 }
 
-func prepareBenchmark() {
-	var domains []string
-
+func prepareBenchmark(nsStore nsInfoMap, dStore dInfoMap) {
 	if appConfiguration.contest {
 		// we need to know who we are testing
 		var localdns = getOSdns()
-		loadNameserver(localdns, "localhost")
+		loadNameserver(nsStore, localdns, "localhost")
 	}
-
-	if appConfiguration.nameserver == "" {
-		// read global nameservers from given file
-		fmt.Println("trying to load nameservers from datasrc/nameserver-globals.csv")
-		readNameserversFromFile("datasrc/nameserver-globals.csv")
-	} else {
-		loadNameserver(appConfiguration.nameserver, "givenByParameter")
-	}
-
-	// read domains from given file
-	fmt.Println("trying to load domains from datasrc/alexa-top-2000-domains.txt")
-	alldomains, err := readDomainsFromFile("datasrc/alexa-top-2000-domains.txt")
-	_ = err // TODO: Exception handling in case that the files do not exist
-	// randomize domains from file to avoid cached results
-	rand.Seed(time.Now().UnixNano())
-	rand.Shuffle(len(alldomains), func(i, j int) { alldomains[i], alldomains[j] = alldomains[j], alldomains[i] })
-	// take care only for the domain-tests we were looking for
-	domains = alldomains[0:appConfiguration.numberOfDomains]
-	dStoreAddFQDN(domains)
-
+	prepareBenchmarkNameservers(nsStore)
+	prepareBenchmarkDomains(dStore)
 }
 
-func performBenchmark() {
+func performBenchmark(nsStore nsInfoMap, dStore dInfoMap) {
 	// initialize DNS client
 	c := new(dns.Client)
 	// to avoid overload against one server we will test all defined nameservers with one domain before proceeding
@@ -145,7 +119,7 @@ func performBenchmark() {
 		for _, nameserver := range nsStore.ns {
 			in, rtt, err := c.Exchange(m1, "["+nameserver.IPAddr+"]"+":53")
 			_ = in
-			nsStoreSetRTT(nameserver.IPAddr, rtt)
+			nsStoreSetRTT(nsStore, nameserver.IPAddr, rtt)
 			_ = err // TODO: Take care about errors during queries against the DNS - we will accept X fails
 		}
 		fmt.Print(".")
@@ -157,13 +131,18 @@ func main() {
 	processFlags()
 	printWelcome()
 
-	prepareBenchmark()
+	// prepare storage for nameservers and domains
+	var nsStore = nsInfoMap{ns: make(map[string]NSinfo)}
+	var dStore = dInfoMap{d: make(map[string]Dinfo)}
 
+	// based on startupconfiguration we have to do some preparation
+	prepareBenchmark(nsStore, dStore)
 	// lets go benchmark - iterate through all domains
 	fmt.Println("LETS GO - each dot is a completed domain request against all nameservers")
-	performBenchmark()
+	performBenchmark(nsStore, dStore)
 
-	processResults()
-	printResults()
+	// benchmark has been completed - now we have to tell the results and say good bye
+	processResults(nsStore)
+	printResults(nsStore)
 	printBye()
 }
