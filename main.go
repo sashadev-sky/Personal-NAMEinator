@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"regexp"
 	"runtime"
-	"time"
 )
 
 var VERSION = "0.3 alpha"
