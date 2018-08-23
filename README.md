@@ -33,44 +33,61 @@ continuation of this project
 This project has been forked from google/namebench. While it seems that the initial Author wanted to move the application towards GO with another application use - I just wanted to continue and maintain the python variant as it did what it should.
 After investigation the python code showed up some very frustrating complications, which were leading to my decision to reimplement the initial application idea - also in GO.
 
-sample output of current version
+help & start parameters
 ---------------
 
 ```
-starting NAMEinator - version 0.1 alpha with configuration:
-- Domains to be requested: 50
+$ ./NAMEinator.exe -h
+Usage of C:\Users\Administrator\go\src\NAMEinator\NAMEinator.exe:
+  -contest
+        enable or disable a contest against your locally configured DNS server (default true)
+  -debug
+        enable or disable debugging
+  -domains int
+        number of domains to be tested (default 100)
+  -nameserver string
+        specify a nameserver instead of using defaults
+```
+
+sample output of current version (debug off)
+---------------
+
+```
+$ ./NAMEinator.exe
+starting NAMEinator - version 0.2 alpha
+understood the following configuration: {numberOfDomains:100 debug:false contest:true nameserver:}
 -------------
 NOTE: as this is an alpha - we rely on feedback - please report bugs and featurerequests to https://github.com/mwiora/NAMEinator/issues and provide this output
 OS: windows ARCH: amd64
 -------------
-trying to load domains from datasrc/alexa-top-2000-domains.txt
 trying to load nameservers from datasrc/nameserver-globals.csv
+trying to load domains from datasrc/alexa-top-2000-domains.txt
 LETS GO - each dot is a completed domain request against all nameservers
-..................................................
+....................................................................................................
 finished - presenting results:
 
 172.31.0.2:
-Avg. [18.056522ms], Min. [0s], Max. [209.4723ms]
+Avg. [60.109104ms], Min. [313.4µs], Max. [899.4558ms]
 
 8.8.8.8:
-Avg. [10.38975ms], Min. [567.7µs], Max. [112.4137ms]
+Avg. [46.839882ms], Min. [266.8µs], Max. [1.3698924s]
 
 8.8.4.4:
-Avg. [5.984448ms], Min. [191.6µs], Max. [38.1314ms]
+Avg. [38.543425ms], Min. [409.2µs], Max. [555.3005ms]
 
 208.67.222.222:
-Avg. [42.736608ms], Min. [0s], Max. [482.7889ms]
+Avg. [48.621088ms], Min. [217.6µs], Max. [614.7506ms]
 
 2001:470:20::2:
-Avg. [48.21425ms], Min. [209.1µs], Max. [1.5964583s]
+Avg. [82.29074ms], Min. [280.1µs], Max. [1.7591384s]
 
 156.154.71.1:
-Avg. [52.636148ms], Min. [309.7µs], Max. [859.5941ms]
+Avg. [56.059446ms], Min. [269.4µs], Max. [1.2002193s]
 
 216.146.35.35:
-Avg. [54.935102ms], Min. [332.8µs], Max. [279.1109ms]
+Avg. [93.600686ms], Min. [441.6µs], Max. [664.3157ms]
 
-Process finished with exit code 0
+Au revoir!
 ```
 
 checklist
@@ -84,7 +101,7 @@ basics
 - [x] release cli version
 
 nice2have
-= [ ] implement test driven development
+- [ ] implement test driven development
 
 to subsitute namebench 1.3.1
 - [ ] support localization of execution
