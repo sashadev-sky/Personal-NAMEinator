@@ -15,7 +15,7 @@ type dInfoMap struct {
 }
 
 // add rtt to the nameserver slice
-func dStoreAddFQDN(dns []string) {
+func dStoreAddFQDN(dStore dInfoMap, dns []string) {
 	dStore.mutex.Lock()
 	defer dStore.mutex.Unlock()
 	for _, domain := range dns {

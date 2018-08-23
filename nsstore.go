@@ -5,12 +5,6 @@ import (
 	"time"
 )
 
-type NSmeasurement struct {
-	rttAvg time.Duration
-	rttMin time.Duration
-	rttMax time.Duration
-}
-
 type NSinfo struct {
 	IPAddr           string
 	Name             string
@@ -30,7 +24,7 @@ type nsInfoMap struct {
 }
 
 // Get IP address entry // DEBUG
-func nsStoreGetRecord(ipAddr string) NSinfo {
+func nsStoreGetRecord(nsStore nsInfoMap, ipAddr string) NSinfo {
 	nsStore.mutex.RLock()
 	defer nsStore.mutex.RUnlock()
 	entry, found := nsStore.ns[ipAddr]
@@ -41,8 +35,8 @@ func nsStoreGetRecord(ipAddr string) NSinfo {
 }
 
 // Get nameserver average time
-func nsStoreGetMeasurement(ipAddr string) NSmeasurement {
-	var nsMeasurement = NSmeasurement{}
+func nsStoreGetMeasurement(nsStore nsInfoMap, ipAddr string) NSinfo {
+	var nsMeasurement = NSinfo{}
 	entry, found := nsStore.ns[ipAddr]
 	if !found {
 		entry.IPAddr = ipAddr
@@ -69,7 +63,7 @@ func nsStoreGetMeasurement(ipAddr string) NSmeasurement {
 }
 
 // add rtt to the nameserver slice
-func nsStoreSetRTT(ipAddr string, rtt time.Duration) {
+func nsStoreSetRTT(nsStore nsInfoMap, ipAddr string, rtt time.Duration) {
 	nsStore.mutex.Lock()
 	defer nsStore.mutex.Unlock()
 	entry, found := nsStore.ns[ipAddr]
@@ -82,7 +76,7 @@ func nsStoreSetRTT(ipAddr string, rtt time.Duration) {
 }
 
 // add rtt to the nameserver slice
-func nsStoreAddNS(ipAddr string, name string, country string) {
+func nsStoreAddNS(nsStore nsInfoMap, ipAddr string, name string, country string) {
 	nsStore.mutex.Lock()
 	defer nsStore.mutex.Unlock()
 	entry, found := nsStore.ns[ipAddr]

@@ -12,26 +12,26 @@ This project began as a 20% project at Google.
 NAMEinator runs on Windows (10), Linux (tested on Ubuntu 16.04) and is available with a
 a command-line interface and in the near future with a graphical user interface.
 
-how2
+This project has been forked from google/namebench. While it seems that the initial Author wanted to move the application towards GO with another application use - I just wanted to continue and maintain the python variant as it did what it should.
+After investigation the python code showed up some very frustrating complications, which were leading to my decision to reimplement the initial application idea - also in GO.
+
+requirements and getting started
 ---------------
 
-* download and run the corresponding compiled files from releases.
+prerequisite: the system running this software must have the tool "nslookup" installed.
+windows users are fine :)
+
+* download and run the corresponding compiled files from releases. execute them on the desired platform
 
 or
 
-* compile yourself (requirement: install go as described here https://golang.org/doc/install)
+* compile yourself (requirement: install go (minimum 1.10.x) as described here https://golang.org/doc/install)
 ```
 go get github.com/mwiora/NAMEinator
 cd ~/go/src/github.com/mwiora/NAMEinator/
 go build
 ./NAMEinator
 ```
-
-continuation of this project
----------------
-
-This project has been forked from google/namebench. While it seems that the initial Author wanted to move the application towards GO with another application use - I just wanted to continue and maintain the python variant as it did what it should.
-After investigation the python code showed up some very frustrating complications, which were leading to my decision to reimplement the initial application idea - also in GO.
 
 help & start parameters
 ---------------
