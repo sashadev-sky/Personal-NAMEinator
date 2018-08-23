@@ -1,129 +1,45 @@
 package main
 
 import (
-	"sync"
-	"time"
-
-	"bufio"
-	"encoding/csv"
+	"flag"
 	"fmt"
 	"github.com/miekg/dns"
-	"io"
 	"log"
 	"math/rand"
-	"os"
 	"os/exec"
 	"regexp"
 	"runtime"
+	"time"
 )
 
-var NUMBER_OF_DOMAINS int = 50 // TODO: Implement Switch
-var VERSION = "0.1 alpha"
+// PROGRAM
+var VERSION = "0.2 alpha"
+
+// GLOBALS
 var nsStore = nsInfoMap{ns: make(map[string]NSinfo)}
+var dStore = dInfoMap{d: make(map[string]Dinfo)}
+var appConfiguration APPconfig
 
-type NSmeasurement struct {
-	rttAvg time.Duration
-	rttMin time.Duration
-	rttMax time.Duration
+type APPconfig struct {
+	numberOfDomains int
+	debug           bool
+	contest         bool
+	nameserver      string
 }
 
-type NSinfo struct {
-	IPAddr           string
-	Name             string
-	Country          string
-	Count            int
-	ErrorsConnection int
-	ErrorsValidation int
-	rtt              []time.Duration
-}
-
-type nsInfoMap struct {
-	ns    map[string]NSinfo
-	mutex sync.RWMutex
-}
-
-//// Get IP address entry // DEBUG // TODO: Implement debug switch
-//func nsStoreGetRecord(ipAddr string) NSinfo {
-//	nsStore.mutex.RLock()
-//	defer nsStore.mutex.RUnlock()
-//	entry, found := nsStore.ns[ipAddr]
-//	if !found {
-//		entry.IPAddr = ipAddr
-//	}
-//	return entry
-//}
-
-// Get nameserver average time
-func nsStoreGetMeasurement(ipAddr string) NSmeasurement {
-	var nsMeasurement = NSmeasurement{}
-	nsStore.mutex.RLock()
-	defer nsStore.mutex.RUnlock()
-	entry, found := nsStore.ns[ipAddr]
-	if !found {
-		entry.IPAddr = ipAddr
-	}
-	var total time.Duration = 0
-	var min time.Duration = 10000000
-	var max time.Duration = 0
-	for _, value := range entry.rtt {
-		// check for new min record
-		if value < min {
-			min = value
-		}
-		// check for new max record
-		if value > max {
-			max = value
-		}
-		// add for total time
-		total += value
-	}
-	nsMeasurement.rttAvg = total / time.Duration(NUMBER_OF_DOMAINS)
-	nsMeasurement.rttMin = min
-	nsMeasurement.rttMax = max
-	return nsMeasurement
-}
-
-// add rtt to the nameserver slice
-func nsStoreSetRTT(ipAddr string, rtt time.Duration) {
-	nsStore.mutex.Lock()
-	defer nsStore.mutex.Unlock()
-	entry, found := nsStore.ns[ipAddr]
-	if !found {
-		entry.IPAddr = ipAddr
-	}
-	entry.rtt = append(entry.rtt, rtt)
-	entry.Count++
-	nsStore.ns[ipAddr] = entry
-}
-
-// add rtt to the nameserver slice
-func nsStoreAddNS(ipAddr string, name string, country string) {
-	nsStore.mutex.Lock()
-	defer nsStore.mutex.Unlock()
-	entry, found := nsStore.ns[ipAddr]
-	if !found {
-		entry.IPAddr = ipAddr
-	}
-	entry.Name = name
-	entry.Country = country
-	nsStore.ns[ipAddr] = entry
-}
-
-// readLines reads a whole file into memory
-// and returns a slice of its lines.
-func readLines(path string) ([]string, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	var lines []string
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-	return lines, scanner.Err()
+// process flags
+func processFlags() {
+	var appConfigstruct APPconfig
+	flagNumberOfDomains := flag.Int("domains", 100, "number of domains to be tested")
+	flagNameserver := flag.String("nameserver", "", "specify a nameserver instead of using defaults")
+	flagContest := flag.Bool("contest", true, "enable or disable a contest against your locally configured DNS server")
+	flagDebug := flag.Bool("debug", false, "enable or disable debugging")
+	flag.Parse()
+	appConfigstruct.numberOfDomains = *flagNumberOfDomains
+	appConfigstruct.debug = *flagDebug
+	appConfigstruct.contest = *flagContest
+	appConfigstruct.nameserver = *flagNameserver
+	appConfiguration = appConfigstruct
 }
 
 // return the IP of the DNS used by the operating system
@@ -140,81 +56,114 @@ func getOSdns() string {
 	return localdns
 }
 
-func main() {
-	fmt.Println("starting NAMEinator - version " + VERSION + " with configuration:")
-	fmt.Printf("- Domains to be requested: %d\n", NUMBER_OF_DOMAINS)
+// prints welcome messages
+func printWelcome() {
+	fmt.Println("starting NAMEinator - version " + VERSION)
+	fmt.Printf("understood the following configuration: %+v\n", appConfiguration)
 	fmt.Println("-------------")
 	fmt.Println("NOTE: as this is an alpha - we rely on feedback - please report bugs and featurerequests to https://github.com/mwiora/NAMEinator/issues and provide this output")
 	fmt.Println("OS: " + runtime.GOOS + " ARCH: " + runtime.GOARCH)
 	fmt.Println("-------------")
+}
 
-	// we need to know who we are testing
-	var localdns = getOSdns()
+func processResults() {
+	nsStore.mutex.Lock()
+	defer nsStore.mutex.Unlock()
+	for _, entry := range nsStore.ns {
+		nsResults := nsStoreGetMeasurement(entry.IPAddr)
+		entry.rttAvg = nsResults.rttAvg
+		entry.rttMin = nsResults.rttMin
+		entry.rttMax = nsResults.rttMax
+		nsStore.ns[entry.IPAddr] = entry
+	}
+}
 
-	// initialize DNS client
-	c := new(dns.Client)
-
-	// read domains from given
-	fmt.Println("trying to load domains from datasrc/alexa-top-2000-domains.txt")
-	alldomains, err := readLines("datasrc/alexa-top-2000-domains.txt")
-	_ = err // TODO: Exception handling in case that the files do not exist
-	// read global nameservers from given file
-	fmt.Println("trying to load nameservers from datasrc/nameserver-globals.csv")
-	csvFile, _ := os.Open("datasrc/nameserver-globals.csv")
-	nameserverReader := csv.NewReader(bufio.NewReader(csvFile))
-	for {
-		line, err := nameserverReader.Read()
-		if err == io.EOF {
-			break
+// prints results
+func printResults() {
+	fmt.Println("")
+	fmt.Println("finished - presenting results: ") // TODO: Colorful representation in a table PLEASE
+	for _, nameserver := range nsStore.ns {
+		fmt.Println("")
+		fmt.Println(nameserver.IPAddr + ": ")
+		fmt.Printf("Avg. [%v], Min. [%v], Max. [%v]", nameserver.rttAvg, nameserver.rttMin, nameserver.rttMax)
+		if appConfiguration.debug {
+			fmt.Println(nsStoreGetRecord(nameserver.IPAddr))
 		}
-		// fmt.Println(line)
-		nsStoreAddNS(line[0], line[1], line[2])
-		_ = err
+		fmt.Println("")
+	}
+}
+
+// prints bye messages
+func printBye() {
+	fmt.Println("")
+	fmt.Println("Au revoir!")
+}
+
+func prepareBenchmark() {
+	var domains []string
+
+	if appConfiguration.contest {
+		// we need to know who we are testing
+		var localdns = getOSdns()
+		loadNameserver(localdns, "localhost")
 	}
 
+	if appConfiguration.nameserver == "" {
+		// read global nameservers from given file
+		fmt.Println("trying to load nameservers from datasrc/nameserver-globals.csv")
+		readNameserversFromFile("datasrc/nameserver-globals.csv")
+	} else {
+		loadNameserver(appConfiguration.nameserver, "givenByParameter")
+	}
+
+	// read domains from given file
+	fmt.Println("trying to load domains from datasrc/alexa-top-2000-domains.txt")
+	alldomains, err := readDomainsFromFile("datasrc/alexa-top-2000-domains.txt")
+	_ = err // TODO: Exception handling in case that the files do not exist
 	// randomize domains from file to avoid cached results
 	rand.Seed(time.Now().UnixNano())
 	rand.Shuffle(len(alldomains), func(i, j int) { alldomains[i], alldomains[j] = alldomains[j], alldomains[i] })
-
 	// take care only for the domain-tests we were looking for
-	domains := alldomains[0:NUMBER_OF_DOMAINS]
-	// fill list of nameservers to be tested
-	nameservers := []string{localdns}
-	for _, nameserver := range nsStore.ns {
-		// fmt.Println(nameserver.IPAddr)
-		nameservers = append(nameservers, nameserver.IPAddr)
-	}
+	domains = alldomains[0:appConfiguration.numberOfDomains]
+	dStoreAddFQDN(domains)
 
-	fmt.Println("LETS GO - each dot is a completed domain request against all nameservers")
-	// lets go benchmark - iterate through all domains
+}
+
+func performBenchmark() {
+	// initialize DNS client
+	c := new(dns.Client)
 	// to avoid overload against one server we will test all defined nameservers with one domain before proceeding
-	for _, domain := range domains {
+	for _, domain := range dStore.d {
 
 		m1 := new(dns.Msg)
 		m1.Id = dns.Id()
 		m1.RecursionDesired = true
 		m1.Question = make([]dns.Question, 1)
-		m1.Question[0] = dns.Question{domain, dns.TypeA, dns.ClassINET}
+		m1.Question[0] = dns.Question{domain.FQDN, dns.TypeA, dns.ClassINET}
 
 		// iterate through all given nameservers
-		for _, nameserver := range nameservers {
-			in, rtt, err := c.Exchange(m1, "["+nameserver+"]"+":53")
+		for _, nameserver := range nsStore.ns {
+			in, rtt, err := c.Exchange(m1, "["+nameserver.IPAddr+"]"+":53")
 			_ = in
-			nsStoreSetRTT(nameserver, rtt)
+			nsStoreSetRTT(nameserver.IPAddr, rtt)
 			_ = err // TODO: Take care about errors during queries against the DNS - we will accept X fails
 		}
 		fmt.Print(".")
 	}
+}
 
-	fmt.Println("")
-	fmt.Println("finished - presenting results: ") // TODO: Colorful representation in a table PLEASE
-	for _, nameserver := range nameservers {
-		// fmt.Println(nsStoreGetRecord(nameserver)) // DEBUG
-		nsStoreEntry := nsStoreGetMeasurement(nameserver)
-		fmt.Println("")
-		fmt.Println(nameserver + ": ")
-		fmt.Printf("Avg. [%v], Min. [%v], Max. [%v]", nsStoreEntry.rttAvg, nsStoreEntry.rttMin, nsStoreEntry.rttMax)
-		fmt.Println("")
-	}
+func main() {
+	// process startup parameters and welcome
+	processFlags()
+	printWelcome()
 
+	prepareBenchmark()
+
+	// lets go benchmark - iterate through all domains
+	fmt.Println("LETS GO - each dot is a completed domain request against all nameservers")
+	performBenchmark()
+
+	processResults()
+	printResults()
+	printBye()
 }
