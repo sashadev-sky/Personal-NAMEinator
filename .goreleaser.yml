@@ -1,7 +1,5 @@
 builds:
 - main: ./main.go
-  files:
-  - datasrc/
   binary: NAMEinator
   goos:
   - windows
@@ -16,9 +14,6 @@ builds:
   ldflags: >
     -X main.Version={{.Version}}
     -X main.DateBuilt={{.Date}}
-  format_overrides:
-    - goos: windows
-      format: zip
 archive:
   wrap_in_directory: true
   format: tar.gz
