@@ -1,6 +1,5 @@
 builds:
-- main: ./main.go
-  binary: NAMEinator
+- binary: NAMEinator
   goos:
   - windows
   - darwin
