@@ -28,6 +28,7 @@ or
 * compile yourself (requirement: install go (minimum 1.10.x) as described here https://golang.org/doc/install)
 ```
 go get github.com/mwiora/NAMEinator
+go get github.com/miekg/dns
 cd ~/go/src/github.com/mwiora/NAMEinator/
 go build
 ./NAMEinator
