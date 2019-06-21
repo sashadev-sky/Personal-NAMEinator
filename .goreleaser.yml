@@ -20,6 +20,6 @@ archive:
     - goos: windows
       format: zip
   files:
-    - datasrc
+    - datasrc/*
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
