@@ -29,7 +29,7 @@ or
 ```
 go get github.com/mwiora/NAMEinator
 go get github.com/miekg/dns
-cd ~/go/src/github.com/mwiora/NAMEinator/
+cd $GOPATH/src/github.com/mwiora/NAMEinator/
 go build
 ./NAMEinator
 ```
