@@ -10,7 +10,7 @@ import (
 	"runtime"
 )
 
-var VERSION = "0.3 alpha"
+var VERSION = "custom"
 var appConfiguration APPconfig
 
 type APPconfig struct {
