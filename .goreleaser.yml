@@ -13,7 +13,7 @@ builds:
   ldflags: >
     -X main.VERSION={{.Version}}
     -X main.DateBuilt={{.Date}}
-archive:
+archives:
   wrap_in_directory: true
   format: tar.gz
   format_overrides:
