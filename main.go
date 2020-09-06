@@ -39,6 +39,10 @@ func processFlags() {
 func getOSdns() string {
 	// get local dns ip
 	out, err := exec.Command("nslookup", ".").Output()
+	if appConfiguration.debug {
+		fmt.Println("DEBUG: nslookup output")
+		fmt.Printf("%s\n", out)
+	}
 	var errorcode = fmt.Sprint(err)
 	if err != nil {
 		if errorcode == "exit status 1" {
@@ -54,6 +58,10 @@ func getOSdns() string {
 	re := regexp.MustCompile("\\b\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\b") // TODO: Make IPv6 compatible
 	// fmt.Printf("%q\n", re.FindString(string(out)))
 	var localdns = re.FindString(string(out))
+	if appConfiguration.debug {
+		fmt.Println("DEBUG: dns server")
+		fmt.Printf("%s\n", localdns)
+	}
 	return localdns
 }
 
