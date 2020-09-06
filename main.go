@@ -25,8 +25,8 @@ func processFlags() {
 	var appConfigstruct APPconfig
 	flagNumberOfDomains := flag.Int("domains", 100, "number of domains to be tested")
 	flagNameserver := flag.String("nameserver", "", "specify a nameserver instead of using defaults")
-	flagContest := flag.Bool("contest", true, "enable or disable a contest against your locally configured DNS server")
-	flagDebug := flag.Bool("debug", false, "enable or disable debugging")
+	flagContest := flag.Bool("contest", true, "contest=true/false : enable or disable a contest against your locally configured DNS server (default true)")
+	flagDebug := flag.Bool("debug", false, "debug=true/false : enable or disable debugging (default false)")
 	flag.Parse()
 	appConfigstruct.numberOfDomains = *flagNumberOfDomains
 	appConfigstruct.debug = *flagDebug

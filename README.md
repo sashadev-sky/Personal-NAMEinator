@@ -39,10 +39,10 @@ help & start parameters
 ```
 $ ./NAMEinator.exe -h
 Usage of C:\Users\Administrator\go\src\NAMEinator\NAMEinator.exe:
-  -contest
+  -contest=false
         enable or disable a contest against your locally configured DNS server (default true)
-  -debug
-        enable or disable debugging
+  -debug=true
+        enable or disable debugging (default false)
   -domains int
         number of domains to be tested (default 100)
   -nameserver string
