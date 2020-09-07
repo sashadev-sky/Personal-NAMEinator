@@ -12,6 +12,7 @@ type NSinfo struct {
 	Count            int
 	ErrorsConnection int
 	ErrorsValidation int
+	ID               int64
 	rtt              []time.Duration
 	rttAvg           time.Duration
 	rttMin           time.Duration

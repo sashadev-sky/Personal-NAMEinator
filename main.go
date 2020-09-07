@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"regexp"
 	"runtime"
+	"sort"
 )
 
 var VERSION = "custom"
@@ -75,26 +76,34 @@ func printWelcome() {
 	fmt.Println("-------------")
 }
 
-func processResults(nsStore nsInfoMap) {
+func processResults(nsStore nsInfoMap) []NSinfo {
 	nsStore.mutex.Lock()
 	defer nsStore.mutex.Unlock()
+	var nsStoreSorted []NSinfo
 	for _, entry := range nsStore.ns {
 		nsResults := nsStoreGetMeasurement(nsStore, entry.IPAddr)
 		entry.rttAvg = nsResults.rttAvg
 		entry.rttMin = nsResults.rttMin
 		entry.rttMax = nsResults.rttMax
+		entry.ID = int64(nsResults.rttAvg)
 		nsStore.ns[entry.IPAddr] = entry
+		nsStoreSorted = append(nsStoreSorted, NSinfo{entry.IPAddr, entry.Name, entry.Country, entry.Count, entry.ErrorsConnection, entry.ErrorsValidation, entry.ID, entry.rtt, entry.rttAvg, entry.rttMin, entry.rttMax})
 	}
+	sort.Slice(nsStoreSorted, func(i, j int) bool {
+		return nsStoreSorted[i].ID < nsStoreSorted[j].ID
+	})
+	return nsStoreSorted
 }
 
 // prints results
-func printResults(nsStore nsInfoMap) {
+func printResults(nsStore nsInfoMap, nsStoreSorted []NSinfo) {
 	fmt.Println("")
 	fmt.Println("finished - presenting results: ") // TODO: Colorful representation in a table PLEASE
-	for _, nameserver := range nsStore.ns {
+
+	for _, nameserver := range nsStoreSorted {
 		fmt.Println("")
 		fmt.Println(nameserver.IPAddr + ": ")
-		fmt.Printf("Avg. [%v], Min. [%v], Max. [%v]", nameserver.rttAvg, nameserver.rttMin, nameserver.rttMax)
+		fmt.Printf("Avg. [%v], Min. [%v], Max. [%v] ", nameserver.rttAvg, nameserver.rttMin, nameserver.rttMax)
 		if appConfiguration.debug {
 			fmt.Println(nsStoreGetRecord(nsStore, nameserver.IPAddr))
 		}
@@ -149,6 +158,7 @@ func main() {
 	// prepare storage for nameservers and domains
 	var nsStore = nsInfoMap{ns: make(map[string]NSinfo)}
 	var dStore = dInfoMap{d: make(map[string]Dinfo)}
+	// var nsStoreSorted []NSinfo
 
 	// based on startupconfiguration we have to do some preparation
 	prepareBenchmark(nsStore, dStore)
@@ -157,7 +167,7 @@ func main() {
 	performBenchmark(nsStore, dStore)
 
 	// benchmark has been completed - now we have to tell the results and say good bye
-	processResults(nsStore)
-	printResults(nsStore)
+	var nsStoreSorted = processResults(nsStore)
+	printResults(nsStore, nsStoreSorted)
 	printBye()
 }
